@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum PaperStatus {
+  PENDING
+  INCLUDED
+  EXCLUDED
+}
+
+model Paper {
+  id             String      @id @default(cuid())
+  title          String
+  abstract       String
+  venue          String
+  authors        String
+  year           Int
+  status         PaperStatus @default(PENDING)
+  decisionReason String?
+  aiSuggestion   String?
+  aiReason       String?
+  aiModel        String?
+  createdAt      DateTime    @default(now())
+}
+
+model ReviewSettings {
+  id                String   @id @default("default")
+  topic             String
+  inclusionCriteria String
+  exclusionCriteria String
+  updatedAt         DateTime @updatedAt
+}
