@@ -8,6 +8,12 @@ The original ReLiS is written in legacy PHP + MySQL. This project is a modern, l
 
 ---
 
+## Demo
+
+[![mini-ReLiS Demo Video](https://img.youtube.com/vi/pbO3ljMRFVw/maxresdefault.jpg)](https://youtu.be/pbO3ljMRFVw)
+
+---
+
 ## Screenshots
 
 ### 1. Focus Mode (Distraction-Free Screening)
