@@ -224,7 +224,11 @@ pnpm seed
 ```
 
 ### 7. Run Development Servers
-In two separate terminals:
+
+**Option A — One-click launcher (Windows):**
+Double-click `start.bat` in the project root. It starts Docker, runs migrations, and opens the API and web servers in separate terminal windows automatically.
+
+**Option B — Manual (two terminals):**
 
 **Terminal 1 (Backend API):**
 ```bash
