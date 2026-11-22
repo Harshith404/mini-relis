@@ -18,17 +18,17 @@ Screen candidate papers one at a time with full abstracts, secondary AI suggesti
 ### 2. All Papers (Literature Table)
 Review the complete candidate list with status filtering (All, Pending, Included, Excluded), live screening progress metrics, and expandable AI screening rationales.
 
-![All Papers Table](docs/screenshots/02-all-papers-table.jpg)
+![All Papers Table](docs/screenshots/02-all-papers-table.png)
 
 ### 3. Review Protocol & Screening Criteria
 Configure the central research question alongside explicit Inclusion Criteria (IC) and Exclusion Criteria (EC) that guide LLM screening suggestions.
 
-![Review Protocol Drawer](docs/screenshots/03-review-protocol-settings.jpg)
+![Review Protocol Drawer](docs/screenshots/03-review-protocol-settings.png)
 
 ### 4. Add Candidate Paper
 Slide-over drawer to register new literature into the review pipeline with validation.
 
-![Add Paper Drawer](docs/screenshots/04-add-paper-drawer.jpg)
+![Add Paper Drawer](docs/screenshots/04-add-paper-drawer.png)
 
 ---
 
