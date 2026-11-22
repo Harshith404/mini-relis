@@ -29,3 +29,18 @@ export interface ApiResponse {
   limit?: number
   offset?: number
 }
+
+export interface ToastMessage {
+  id: string
+  type: 'success' | 'error' | 'info'
+  text: string
+}
+
+export interface ScreeningStats {
+  total: number
+  pending: number
+  included: number
+  excluded: number
+  screened: number
+  percentage: number
+}

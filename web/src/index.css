@@ -1,1 +1,11 @@
 @import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  
+  .font-serif {
+    font-family: 'Source Serif 4', Georgia, Cambria, 'Times New Roman', serif;
+  }
+}

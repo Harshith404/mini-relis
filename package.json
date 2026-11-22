@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev:api": "pnpm --filter api dev",
-    "dev:web": "pnpm --filter web dev"
+    "dev:web": "pnpm --filter web dev",
+    "seed": "pnpm --filter api seed",
+    "test": "pnpm --filter api test"
   }
 }

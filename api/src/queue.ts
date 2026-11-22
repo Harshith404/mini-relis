@@ -1,8 +1,8 @@
 import 'dotenv/config'
 import { PgBoss } from 'pg-boss'
 import { GoogleGenAI } from '@google/genai'
-import { z } from 'zod'
 import { prisma } from './db.js'
+import { parseAiResponse, type AiResult } from './aiParser.js'
 
 const connectionString = process.env.DATABASE_URL
 if (!connectionString) {
@@ -17,16 +17,6 @@ boss.on('error', (err) => {
 
 export const QUEUE_NAME = 'ai-screening'
 const MODEL_NAME = 'gemini-2.5-flash'
-
-const aiResponseSchema = z.object({
-  suggestion: z.enum(['INCLUDE', 'EXCLUDE']),
-  reason: z.string().trim().min(1, 'Reason cannot be empty'),
-})
-
-function extractJson(text: string): string {
-  const match = text.match(/\{[\s\S]*\}/)
-  return match ? match[0] : text
-}
 
 export async function startWorker() {
   await boss.start()
@@ -92,7 +82,7 @@ Return ONLY a JSON object with this exact shape:
 or
 {"suggestion": "EXCLUDE", "reason": "concise explanation"}`
 
-      let validResult: z.infer<typeof aiResponseSchema> | null = null
+      let validResult: AiResult | null = null
       let attempts = 0
       const maxAttempts = 3
 
@@ -108,14 +98,10 @@ or
           })
 
           const text = response.text || ''
-          const jsonStr = extractJson(text)
-          const parsed = JSON.parse(jsonStr)
-          const result = aiResponseSchema.safeParse(parsed)
+          validResult = parseAiResponse(text)
 
-          if (result.success) {
-            validResult = result.data
-          } else {
-            console.warn(`[Queue] Attempt ${attempts} invalid JSON structure:`, result.error.issues)
+          if (!validResult) {
+            console.warn(`[Queue] Attempt ${attempts} invalid JSON structure or content from AI:`, text)
           }
         } catch (err: any) {
           console.warn(`[Queue] Attempt ${attempts} failed:`, err?.message || err)
