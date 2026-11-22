@@ -2,7 +2,7 @@
 
 A simplified modern rebuild of [ReLiS](https://github.com/WCD-CARA/relis), an open-source tool for systematic literature reviews (SLRs).
 
-The original ReLiS is written in legacy PHP + MySQL. This project is a modern, lightweight rebuild built with TypeScript, Hono, PostgreSQL, Prisma, React, Tailwind CSS, and pg-boss with Google Gemini 2.5 Flash for AI screening suggestions.
+The original ReLiS is written in legacy PHP + MySQL. This project is a modern, lightweight rebuild built with TypeScript, Hono, PostgreSQL, Prisma, React, Tailwind CSS, and pg-boss with Google Gemini 3.5 Flash for AI screening suggestions.
 
 ---
 
@@ -23,7 +23,7 @@ flowchart TD
 
     subgraph External ["External Services"]
         Postgres[(PostgreSQL Database\nPrisma ORM)]
-        Gemini[Google Gemini 2.5 Flash\nLLM Screening Suggestions]
+        Gemini[Google Gemini 3.5 Flash\nLLM Screening Suggestions]
     end
 
     User <-->|HTTP / JSON| UI
@@ -53,9 +53,11 @@ cp .env.example .env
 Ensure `.env` contains:
 ```env
 PORT=3000
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/relis_db?schema=public
+DATABASE_URL=postgresql://postgres:postgrespassword@localhost:5432/mini_relis?schema=public
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
+
+> **Important:** Node.js loads `.env` only on startup. If you edit `.env` or change your `GEMINI_API_KEY` later, **restart the API server** (`pnpm dev:api`) so the new credentials take effect.
 
 ### 3. Install Dependencies
 ```bash
