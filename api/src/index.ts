@@ -154,12 +154,21 @@ app.post('/papers/:id/ai-suggest', async (c) => {
     data: {
       aiSuggestion: 'QUEUED',
       aiReason: 'AI suggestion is processing in background queue...',
+      aiError: null,
       aiModel: null,
     },
   })
 
-  // Enqueue background job in pg-boss
-  await boss.send(QUEUE_NAME, { paperId: id })
+  // Enqueue background job in pg-boss with exponential backoff
+  await boss.send(
+    QUEUE_NAME,
+    { paperId: id },
+    {
+      retryLimit: 3,
+      retryDelay: 15,
+      retryBackoff: true,
+    }
+  )
 
   return c.json({ message: 'AI suggestion queued', paperId: id }, 202)
 })
@@ -176,10 +185,19 @@ app.post('/papers/re-run-ai', async (c) => {
       data: {
         aiSuggestion: 'QUEUED',
         aiReason: 'AI suggestion is processing in background queue...',
+        aiError: null,
         aiModel: null,
       },
     })
-    await boss.send(QUEUE_NAME, { paperId: paper.id })
+    await boss.send(
+      QUEUE_NAME,
+      { paperId: paper.id },
+      {
+        retryLimit: 3,
+        retryDelay: 15,
+        retryBackoff: true,
+      }
+    )
   }
 
   return c.json({ count: pending.length, message: `Re-queued AI screening for ${pending.length} pending papers` })

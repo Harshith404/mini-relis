@@ -11,6 +11,7 @@ export interface Paper {
   decisionReason: string | null
   aiSuggestion: string | null
   aiReason: string | null
+  aiError: string | null
   aiModel: string | null
   createdAt: string
 }

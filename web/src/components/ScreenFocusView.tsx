@@ -189,9 +189,22 @@ export function ScreenFocusView({
               </p>
             </div>
           ) : currentPaper.aiSuggestion === 'FAILED' ? (
-            <div className="flex items-start gap-2 text-xs text-rose-700 bg-rose-50 p-2.5 rounded-lg border border-rose-200">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <p>{currentPaper.aiReason || 'AI screening failed validation or exceeded rate limit.'}</p>
+            <div
+              className="flex items-start gap-2 text-xs text-rose-700 bg-rose-50 p-3 rounded-lg border border-rose-200"
+              title={currentPaper.aiError || 'AI screening failed.'}
+            >
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-semibold underline decoration-dotted underline-offset-2 cursor-help">
+                    AI Screening Failed
+                  </span>
+                  <span className="text-[10px] text-stone-500">(hover for failure reason)</span>
+                </div>
+                <p className="text-[11px] text-rose-700 leading-relaxed">
+                  {currentPaper.aiError || currentPaper.aiReason || 'AI response failed schema validation or rate limit exceeded.'}
+                </p>
+              </div>
             </div>
           ) : (
             <div className="flex items-center justify-between text-xs text-stone-500 py-1">

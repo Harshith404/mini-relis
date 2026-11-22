@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseAiResponse, extractJson } from '../aiParser.js'
+import { parseAiResponse, isTemporaryError } from '../aiParser.js'
 
 describe('parseAiResponse (LLM JSON Parser)', () => {
   it('correctly parses valid raw JSON with INCLUDE', () => {
@@ -53,5 +53,27 @@ Let me know if you need more details!`
     const input = '{"suggestion": "INCLUDE", "reason": "   "}'
     const result = parseAiResponse(input)
     expect(result).toBeNull()
+  })
+})
+
+describe('isTemporaryError (Error Classification)', () => {
+  it('detects 429 rate limit error code or status', () => {
+    expect(isTemporaryError({ status: 429 })).toBe(true)
+    expect(isTemporaryError({ statusCode: 429 })).toBe(true)
+    expect(isTemporaryError(new Error('RESOURCE_EXHAUSTED: Quota exceeded'))).toBe(true)
+    expect(isTemporaryError(new Error('Rate limit exceeded 429'))).toBe(true)
+  })
+
+  it('detects 503 service unavailable error', () => {
+    expect(isTemporaryError({ status: 503 })).toBe(true)
+    expect(isTemporaryError(new Error('503 Service Unavailable'))).toBe(true)
+    expect(isTemporaryError(new Error('UNAVAILABLE: model overloaded'))).toBe(true)
+  })
+
+  it('does not classify client or syntax errors as temporary', () => {
+    expect(isTemporaryError(new Error('SyntaxError: Unexpected token'))).toBe(false)
+    expect(isTemporaryError({ status: 400 })).toBe(false)
+    expect(isTemporaryError({ status: 404 })).toBe(false)
+    expect(isTemporaryError(null)).toBe(false)
   })
 })

@@ -22,3 +22,20 @@ export function parseAiResponse(text: string): AiResult | null {
     return null
   }
 }
+
+export function isTemporaryError(err: unknown): boolean {
+  if (!err) return false
+  const anyErr = err as Record<string, any>
+  const status = anyErr.status || anyErr.statusCode || anyErr.code
+  if (status === 429 || status === 503) return true
+
+  const msg = String(anyErr.message || err).toUpperCase()
+  return (
+    msg.includes('429') ||
+    msg.includes('503') ||
+    msg.includes('RESOURCE_EXHAUSTED') ||
+    msg.includes('UNAVAILABLE') ||
+    msg.includes('QUOTA') ||
+    msg.includes('RATE LIMIT')
+  )
+}

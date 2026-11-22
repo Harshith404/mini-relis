@@ -225,15 +225,22 @@ export function AllPapersView({
                               )}
                             </div>
                           ) : paper.aiSuggestion === 'FAILED' ? (
-                            <div className="flex items-center gap-1.5 text-[11px] text-rose-700">
+                            <div
+                              className="flex items-center gap-1.5 text-[11px] text-rose-700"
+                              title={paper.aiError || 'AI screening failed.'}
+                            >
                               <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                              <span>AI Failed</span>
-                              <button
-                                onClick={() => onRequestAi(paper.id)}
-                                className="text-[10px] underline ml-1 cursor-pointer"
-                              >
-                                Retry
-                              </button>
+                              <span className="font-semibold underline decoration-dotted underline-offset-2 cursor-help">
+                                AI Failed
+                              </span>
+                              {paper.status === 'PENDING' && (
+                                <button
+                                  onClick={() => onRequestAi(paper.id)}
+                                  className="text-[10px] underline ml-1 cursor-pointer text-stone-500 hover:text-stone-800"
+                                >
+                                  Retry
+                                </button>
+                              )}
                             </div>
                           ) : paper.status === 'PENDING' ? (
                             <button
@@ -337,7 +344,30 @@ export function AllPapersView({
                   </div>
 
                   {/* AI Suggestion */}
-                  {paper.aiSuggestion && (
+                  {paper.aiSuggestion === 'FAILED' ? (
+                    <div
+                      className="p-2.5 rounded-lg border border-rose-200 bg-rose-50 text-xs text-rose-800"
+                      title={paper.aiError || 'AI screening failed.'}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 font-semibold text-[11px]">
+                          <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                          <span>AI Screening Failed</span>
+                        </div>
+                        {paper.status === 'PENDING' && (
+                          <button
+                            onClick={() => onRequestAi(paper.id)}
+                            className="text-[10px] underline font-medium text-rose-700 cursor-pointer"
+                          >
+                            Retry
+                          </button>
+                        )}
+                      </div>
+                      {paper.aiError && (
+                        <p className="text-[11px] mt-1 text-rose-700 italic">"{paper.aiError}"</p>
+                      )}
+                    </div>
+                  ) : paper.aiSuggestion && (
                     <div className="p-2.5 rounded-lg border border-dashed border-indigo-200 bg-[#f9f8fc] text-xs">
                       <div className="flex items-center gap-1 font-semibold text-indigo-900 text-[11px]">
                         <Sparkles className="w-3 h-3 text-indigo-600" />

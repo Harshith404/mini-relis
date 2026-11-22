@@ -23,6 +23,7 @@ model Paper {
   decisionReason String?
   aiSuggestion   String?
   aiReason       String?
+  aiError        String?
   aiModel        String?
   createdAt      DateTime    @default(now())
 }
