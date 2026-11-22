@@ -2,6 +2,8 @@
 
 A simplified modern rebuild of [ReLiS](https://github.com/WCD-CARA/relis), an open-source tool for systematic literature reviews (SLRs).
 
+Practice project inspired by [ReLiS](https://github.com/WCD-CARA/relis), not affiliated with the ReLiS team.
+
 The original ReLiS is written in legacy PHP + MySQL. This project is a modern, lightweight rebuild built with TypeScript, Hono, PostgreSQL, Prisma, React, Tailwind CSS, and pg-boss with Google Gemini 3.5 Flash for AI screening suggestions.
 
 ---
