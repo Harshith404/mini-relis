@@ -32,33 +32,143 @@ Slide-over drawer to register new literature into the review pipeline with valid
 
 ---
 
-## Architecture Diagram
+## Tech Stack [Detailed]
+
+### Frontend (Client Layer)
+- **Framework & Language**: [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) — functional components with hooks (`useState`, `useEffect`, `useMemo`, `useCallback`) managing local application state, slide-over drawers, modal dialogues, and global keyboard shortcuts.
+- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/) — modern CSS-first styling using warm scholar aesthetics (paper-like off-whites `#fcfbf9`, deep navy text `#141b24`, muted status indicators, and distinct dashed styling for secondary AI suggestions).
+- **Build Tool**: [Vite 6](https://vitejs.dev/) — ultra-fast dev server with instantaneous Hot Module Replacement (HMR) and optimized rollup production bundles.
+- **Icons**: [Lucide React](https://lucide.dev/) — lightweight, consistent SVG icon system.
+
+### Backend (API Layer)
+- **Framework**: [Hono](https://hono.dev/) via `@hono/node-server` — lightweight, high-performance web framework providing typed routing, middleware composition, and CORS handling.
+- **Validation**: [Zod](https://zod.dev/) — declarative runtime schema validation enforcing data integrity on paper creation (`POST /papers`), human decisions (`PATCH /papers/:id/decision`), review protocol (`PUT /settings`), and Gemini's JSON responses.
+- **Runtime**: [Node.js](https://nodejs.org/) (ES Modules, TypeScript execution via `tsx`).
+
+### Database, ORM & Background Queue
+- **Database**: [PostgreSQL 16](https://www.postgresql.org/) — robust relational storage for literature metadata, screening decisions, and job queue state.
+- **ORM & Migrations**: [Prisma 7.10.1](https://www.prisma.io/) — type-safe schema modeling, declarative migration engine, and `@prisma/adapter-pg` driver adapter for connection pooling.
+- **Job Queue**: [pg-boss 12](https://github.com/timgit/pg-boss) — transactional PostgreSQL-backed background job queue with persistence, concurrency locks, exponential backoff retries, and job tracking without requiring Redis.
+- **Infrastructure**: [Docker Compose](https://www.docker.com/) — single-command containerized local PostgreSQL setup.
+
+### AI Screening & LLM Integration
+- **Model**: **Google Gemini 3.5 Flash** via the official [`@google/genai`](https://www.npmjs.com/package/@google/genai) SDK.
+- **Structured Output**: Native JSON mode (`responseMimeType: 'application/json'`) prompting the LLM for strict `{"suggestion": "INCLUDE" | "EXCLUDE", "reason": "..."}` payloads evaluated against user-configured topic and inclusion/exclusion criteria.
+- **Reliability Engine**:
+  - `batchSize: 1` concurrency lock (processes one candidate paper at a time).
+  - 12-second inter-job delay enforcement to stay within Gemini's 5 RPM free-tier limit.
+  - Exponential backoff (`retryLimit: 3`, `retryDelay: 15s`, `retryBackoff: true`) for temporary `429` / `503` rate spikes.
+  - In-worker retry for malformed JSON answers, recording detailed failure diagnostics in `aiError`.
+
+### Testing & Tooling
+- **Unit Testing**: [Vitest](https://vitest.dev/) — fast unit test suite verifying Zod schema boundaries and pure LLM JSON parsing functions.
+- **E2E Testing**: [Playwright](https://playwright.dev/) — browser automation verifying the entire user journey (adding candidate literature, navigation, and list verification in headless Chromium).
+- **Package Management**: [pnpm 12](https://pnpm.io/) — efficient monorepo workspace linking `api/` and `web/` packages.
+
+---
+
+## Architecture [Detailed]
+
+mini-ReLiS follows a decoupled client-server architecture with an asynchronous, queue-based background processing pipeline for LLM evaluations.
+
+### System Architecture Diagram
 
 ```mermaid
 flowchart TD
-    User([User Browser])
-    
-    subgraph Frontend ["Frontend (Vite + React 19 + Tailwind v4)"]
-        UI["Review Dashboard\n- Focus Mode Screening\n- All Papers Table\n- Settings & Add Drawers"]
+    subgraph Browser ["Client Tier (Browser)"]
+        UI["React 19 SPA (Vite, Port 5173)"]
+        Focus["Focus Mode\n(1-Paper Screen + Shortcuts)"]
+        Table["All Papers View\n(Filters, Stats, Expandable Reasons)"]
+        Drawers["Slide-Over Drawers\n(Add Paper & Protocol Settings)"]
+        UI --> Focus
+        UI --> Table
+        UI --> Drawers
     end
 
-    subgraph Backend ["Backend API (Hono + TypeScript)"]
-        Hono["Hono HTTP Server (Port 3000)\nREST Endpoints & Zod Validation"]
-        Queue["pg-boss Queue Worker\n(ai-screening queue)"]
+    subgraph API ["Server Tier (Port 3000)"]
+        Hono["Hono HTTP Router & CORS"]
+        Zod["Zod Validation Layer\n(Input Sanitation)"]
+        Routes["API Endpoints\n(/papers, /settings, /ai-suggest)"]
+        Hono --> Zod --> Routes
     end
 
-    subgraph External ["External Services"]
-        Postgres[(PostgreSQL Database\nPrisma ORM)]
-        Gemini[Google Gemini 3.5 Flash\nLLM Screening Suggestions]
+    subgraph Data ["Data & Queue Tier"]
+        Prisma["Prisma ORM Client\n(@prisma/adapter-pg)"]
+        Postgres[(PostgreSQL 16\nDocker Container)]
+        PgBoss["pg-boss Worker Engine\n(Queue: ai-screening)"]
+        
+        Routes -->|Read / Write Papers| Prisma
+        Routes -->|Enqueue Screening Job| PgBoss
+        Prisma <--> Postgres
+        PgBoss <-->|Job State Tables| Postgres
     end
 
-    User <-->|HTTP / JSON| UI
-    UI <-->|REST API| Hono
-    Hono <-->|Prisma Client| Postgres
-    Hono -->|Enqueue Job| Queue
-    Queue <-->|Store Jobs & State| Postgres
-    Queue <-->|JSON Prompt / Suggestion| Gemini
+    subgraph AI ["AI Screening Pipeline"]
+        PureParser["Pure JSON Parser\n(aiParser.ts)"]
+        Gemini["Google Gemini 3.5 Flash\n(Google GenAI API)"]
+        
+        PgBoss -->|1 Job at a time\n+ 12s Rate Limit| Gemini
+        Gemini -->|Raw JSON Text| PureParser
+        PureParser -->|Validated Suggestion| PgBoss
+        PgBoss -->|Update Paper Decision| Prisma
+    end
+
+    Browser <-->|HTTP / REST (JSON)| API
 ```
+
+### Data Flow & Screening Lifecycle
+
+The following sequence details how a candidate paper transitions from upload to human decision with AI assistance:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Reviewer as Researcher
+    participant UI as React Web App
+    participant API as Hono REST API
+    participant DB as PostgreSQL (Prisma)
+    participant Q as pg-boss Queue
+    participant LLM as Gemini 3.5 Flash
+
+    Reviewer->>UI: Clicks "Ask AI" or "Re-run AI"
+    UI->>API: POST /papers/:id/ai-suggest
+    API->>DB: Set paper aiSuggestion = "QUEUED", aiError = null
+    API->>Q: Enqueue job { paperId } (retryLimit: 3, backoff: 15s)
+    API-->>UI: 202 Accepted { message: "AI suggestion queued" }
+    UI->>UI: Show pulsing "AI analyzing..." badge
+
+    loop pg-boss Worker (batchSize: 1)
+        Q->>Q: Claim next job lock
+        Q->>DB: Fetch paper title, abstract, and ReviewSettings
+        Q->>LLM: Send structured prompt (Topic + Criteria + Abstract)
+        alt Gemini returns valid JSON
+            Q->>DB: Save aiSuggestion ("INCLUDE"|"EXCLUDE"), aiReason, clear aiError
+        else Gemini returns temporary error (429 or 503)
+            Q->>DB: Set aiError ("Temporary rate limit, retrying...")
+            Q->>Q: Throw error -> pg-boss schedules exponential backoff retry
+        else Gemini returns unparseable text
+            Q->>LLM: Retry prompt once immediately
+            Q->>DB: If still invalid, mark aiSuggestion = "FAILED", save raw text in aiError
+        end
+        Q->>Q: Wait 12 seconds (enforce 5 RPM rate limit)
+    end
+
+    UI->>API: Periodic fetch / polling GET /papers
+    API->>DB: SELECT * FROM Paper
+    API-->>UI: Returns updated papers with AI suggestions
+    Reviewer->>UI: Press 'I' (Include) or 'E' (Exclude)
+    UI->>Reviewer: Opens Decision Modal (AI rationale displayed alongside)
+    Reviewer->>UI: Enters decision rationale (or clicks "Use AI reason")
+    UI->>API: PATCH /papers/:id/decision { status, decisionReason }
+    API->>DB: Record final human decision
+    API-->>UI: 200 OK (Paper updated)
+    UI->>UI: Advances to next pending paper & updates progress bar
+```
+
+### Core Design Principles
+1. **Human in the Loop**: The AI never makes binding inclusion or exclusion decisions. It acts strictly as an advisory assistant. The human decision is the primary, immutable record.
+2. **Rate Limit Resilience**: By pairing a persistent database queue (`pg-boss`) with strict single-job execution (`batchSize: 1`) and mandatory inter-job pauses (12 seconds), the system gracefully survives Gemini free-tier quota constraints without drops.
+3. **Transparent Failure Diagnostics**: Every background failure classifies errors into temporary (retryable with backoff) vs fatal (malformed prompt output), recording actionable error logs directly onto the candidate paper (`aiError`) for instant hover inspection.
 
 ---
 
