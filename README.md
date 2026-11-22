@@ -76,44 +76,45 @@ mini-ReLiS follows a decoupled client-server architecture with an asynchronous, 
 ```mermaid
 flowchart TD
     subgraph Browser ["Client Tier (Browser)"]
-        UI["React 19 SPA (Vite, Port 5173)"]
-        Focus["Focus Mode\n(1-Paper Screen + Shortcuts)"]
-        Table["All Papers View\n(Filters, Stats, Expandable Reasons)"]
-        Drawers["Slide-Over Drawers\n(Add Paper & Protocol Settings)"]
+        UI["React 19 SPA (Vite)"]
+        Focus["Focus Mode View"]
+        Table["All Papers Table View"]
+        Drawers["Slide-Over Drawers"]
         UI --> Focus
         UI --> Table
         UI --> Drawers
     end
 
-    subgraph API ["Server Tier (Port 3000)"]
+    subgraph ServerTier ["Server Tier (Port 3000)"]
         Hono["Hono HTTP Router & CORS"]
-        Zod["Zod Validation Layer\n(Input Sanitation)"]
-        Routes["API Endpoints\n(/papers, /settings, /ai-suggest)"]
+        Zod["Zod Validation Layer"]
+        Routes["API Endpoints (/papers, /settings)"]
         Hono --> Zod --> Routes
     end
 
-    subgraph Data ["Data & Queue Tier"]
-        Prisma["Prisma ORM Client\n(@prisma/adapter-pg)"]
-        Postgres[(PostgreSQL 16\nDocker Container)]
-        PgBoss["pg-boss Worker Engine\n(Queue: ai-screening)"]
+    subgraph DataTier ["Data & Queue Tier"]
+        Prisma["Prisma ORM Client"]
+        Postgres[("PostgreSQL 16 Database")]
+        PgBoss["pg-boss Queue Engine"]
         
-        Routes -->|Read / Write Papers| Prisma
-        Routes -->|Enqueue Screening Job| PgBoss
-        Prisma <--> Postgres
-        PgBoss <-->|Job State Tables| Postgres
+        Routes -->|"Read / Write"| Prisma
+        Routes -->|"Enqueue Job"| PgBoss
+        Prisma --> Postgres
+        PgBoss --> Postgres
     end
 
-    subgraph AI ["AI Screening Pipeline"]
-        PureParser["Pure JSON Parser\n(aiParser.ts)"]
-        Gemini["Google Gemini 3.5 Flash\n(Google GenAI API)"]
+    subgraph AITier ["AI Screening Pipeline"]
+        PureParser["Pure JSON Parser"]
+        Gemini["Google Gemini 3.5 Flash"]
         
-        PgBoss -->|1 Job at a time\n+ 12s Rate Limit| Gemini
-        Gemini -->|Raw JSON Text| PureParser
-        PureParser -->|Validated Suggestion| PgBoss
-        PgBoss -->|Update Paper Decision| Prisma
+        PgBoss -->|"1 Job at a time (12s delay)"| Gemini
+        Gemini -->|"JSON Response"| PureParser
+        PureParser -->|"Validated Suggestion"| PgBoss
+        PgBoss -->|"Save Result"| Prisma
     end
 
-    Browser <-->|HTTP / REST (JSON)| API
+    UI -->|"HTTP / REST API"| Hono
+    Hono -->|"JSON Responses"| UI
 ```
 
 ### Data Flow & Screening Lifecycle
@@ -133,8 +134,8 @@ sequenceDiagram
     Reviewer->>UI: Clicks "Ask AI" or "Re-run AI"
     UI->>API: POST /papers/:id/ai-suggest
     API->>DB: Set paper aiSuggestion = "QUEUED", aiError = null
-    API->>Q: Enqueue job { paperId } (retryLimit: 3, backoff: 15s)
-    API-->>UI: 202 Accepted { message: "AI suggestion queued" }
+    API->>Q: Enqueue job (retryLimit: 3, backoff: 15s)
+    API-->>UI: 202 Accepted
     UI->>UI: Show pulsing "AI analyzing..." badge
 
     loop pg-boss Worker (batchSize: 1)
@@ -142,24 +143,24 @@ sequenceDiagram
         Q->>DB: Fetch paper title, abstract, and ReviewSettings
         Q->>LLM: Send structured prompt (Topic + Criteria + Abstract)
         alt Gemini returns valid JSON
-            Q->>DB: Save aiSuggestion ("INCLUDE"|"EXCLUDE"), aiReason, clear aiError
-        else Gemini returns temporary error (429 or 503)
+            Q->>DB: Save aiSuggestion ("INCLUDE" or "EXCLUDE") and aiReason
+        else Temporary 429 or 503 error
             Q->>DB: Set aiError ("Temporary rate limit, retrying...")
-            Q->>Q: Throw error -> pg-boss schedules exponential backoff retry
-        else Gemini returns unparseable text
+            Q->>Q: Throw error for pg-boss backoff retry
+        else Unparseable text
             Q->>LLM: Retry prompt once immediately
-            Q->>DB: If still invalid, mark aiSuggestion = "FAILED", save raw text in aiError
+            Q->>DB: If still invalid, mark aiSuggestion = "FAILED"
         end
         Q->>Q: Wait 12 seconds (enforce 5 RPM rate limit)
     end
 
-    UI->>API: Periodic fetch / polling GET /papers
+    UI->>API: Periodic polling GET /papers
     API->>DB: SELECT * FROM Paper
     API-->>UI: Returns updated papers with AI suggestions
-    Reviewer->>UI: Press 'I' (Include) or 'E' (Exclude)
-    UI->>Reviewer: Opens Decision Modal (AI rationale displayed alongside)
-    Reviewer->>UI: Enters decision rationale (or clicks "Use AI reason")
-    UI->>API: PATCH /papers/:id/decision { status, decisionReason }
+    Reviewer->>UI: Press I (Include) or E (Exclude)
+    UI->>Reviewer: Opens Decision Modal with AI rationale
+    Reviewer->>UI: Enters decision rationale or clicks "Use AI reason"
+    UI->>API: PATCH /papers/:id/decision
     API->>DB: Record final human decision
     API-->>UI: 200 OK (Paper updated)
     UI->>UI: Advances to next pending paper & updates progress bar
