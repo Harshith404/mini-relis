@@ -7,10 +7,18 @@ export default defineConfig({
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
   },
-  webServer: {
-    command: 'pnpm dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: true,
-    timeout: 15000,
-  },
+  webServer: [
+    {
+      command: 'pnpm --filter api dev',
+      url: 'http://localhost:3000/health',
+      reuseExistingServer: true,
+      timeout: 20000,
+    },
+    {
+      command: 'pnpm dev',
+      url: 'http://localhost:5173',
+      reuseExistingServer: true,
+      timeout: 20000,
+    },
+  ],
 })
