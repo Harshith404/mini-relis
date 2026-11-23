@@ -16,7 +16,7 @@ boss.on('error', (err) => {
 })
 
 export const QUEUE_NAME = 'ai-screening'
-const MODEL_NAME = 'gemini-3.5-flash'
+const MODEL_NAME = 'gemini-3.5-flash-lite'
 const RATE_LIMIT_DELAY_MS = 12000 // 12 seconds (~5 requests per minute for Gemini free tier)
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
